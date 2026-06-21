@@ -5,13 +5,14 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 import torch
 from tqdm import tqdm
+import concurrent.futures
 
 DIR = Path(__file__).parent
 INPUT_FILE = DIR / "candidates.jsonl"
 OUTPUT_CACHE = DIR / "features_cache.parquet"
 
 CONSULTING_FIRMS = {"tcs", "infosys", "wipro", "accenture", "cognizant", "capgemini"}
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
 
 def is_honeypot(candidate):
     skills = candidate.get("skills", [])
@@ -131,6 +132,20 @@ def extract_features(candidate):
         "skills_str": ", ".join([s.get("name") for s in skills[:3]])
     }
 
+def process_line(line):
+    candidate = json.loads(line)
+    feats = extract_features(candidate)
+    
+    if not feats["is_valid"]:
+        feats["similarity"] = 0.0
+        return feats, None
+        
+    career = candidate.get("career_history", [])
+    summary = candidate.get("profile", {}).get("summary", "")
+    career_desc = " ".join([c.get("description", "") for c in career])
+    text_to_embed = summary + " " + career_desc
+    return feats, text_to_embed
+
 def process_offline():
     print(f"Loading {INPUT_FILE}...")
     
@@ -159,45 +174,41 @@ def process_offline():
     
     features_list = []
     
-    print("Processing candidates and computing embeddings...")
+    print("Processing candidates and computing embeddings via Multiprocessing...")
     count = 0
-    with open(INPUT_FILE, "r", encoding="utf-8") as f:
-        batch_texts = []
-        batch_feats = []
-        
-        for line in tqdm(f):
-            count += 1
-            candidate = json.loads(line)
-            feats = extract_features(candidate)
+    batch_texts = []
+    batch_feats = []
+    
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        with open(INPUT_FILE, "r", encoding="utf-8") as f:
+            # We map chunks to speed up IPC
+            results = executor.map(process_line, f, chunksize=500)
             
-            if not feats["is_valid"]:
-                feats["similarity"] = 0.0
-                features_list.append(feats)
-                continue
+            for feats, text_to_embed in tqdm(results):
+                count += 1
+                if text_to_embed is None:
+                    features_list.append(feats)
+                else:
+                    batch_texts.append(text_to_embed)
+                    batch_feats.append(feats)
                 
-            career = candidate.get("career_history", [])
-            summary = candidate.get("profile", {}).get("summary", "")
-            career_desc = " ".join([c.get("description", "") for c in career])
-            text_to_embed = summary + " " + career_desc
-            
-            batch_texts.append(text_to_embed)
-            batch_feats.append(feats)
-            
-            if len(batch_texts) >= 512:
+                # Encode on GPU when batch reaches 512
+                if len(batch_texts) >= 512:
+                    embs = model.encode(batch_texts, normalize_embeddings=True)
+                    for i, emb in enumerate(embs):
+                        sim = float(emb @ jd_embedding)
+                        batch_feats[i]["similarity"] = sim
+                        features_list.append(batch_feats[i])
+                    batch_texts = []
+                    batch_feats = []
+                    
+            # Flush remaining
+            if batch_texts:
                 embs = model.encode(batch_texts, normalize_embeddings=True)
                 for i, emb in enumerate(embs):
-                    sim = (emb @ jd_embedding)
-                    batch_feats[i]["similarity"] = float(sim)
+                    sim = float(emb @ jd_embedding)
+                    batch_feats[i]["similarity"] = sim
                     features_list.append(batch_feats[i])
-                batch_texts = []
-                batch_feats = []
-                
-        if batch_texts:
-            embs = model.encode(batch_texts, normalize_embeddings=True)
-            for i, emb in enumerate(embs):
-                sim = (emb @ jd_embedding)
-                batch_feats[i]["similarity"] = float(sim)
-                features_list.append(batch_feats[i])
                 
     print(f"Total processed: {count}")
     df = pd.DataFrame(features_list)
