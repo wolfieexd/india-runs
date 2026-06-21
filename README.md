@@ -14,7 +14,7 @@ The core requirement was to build a ranking engine that deeply understands candi
 To guarantee we meet the strict latency constraints, we designed a highly optimized **two-phase architecture**:
 
 ```mermaid
-graph TD
+graph LR
     classDef input fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
     classDef process fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000
     classDef gpu fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
@@ -23,24 +23,28 @@ graph TD
     classDef success fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#000
     classDef cache fill:#e8eaf6,stroke:#1a237e,stroke-width:2px,color:#000
 
-    A[(Raw JSONL Dataset)]:::input -->|Read & Map| B(CPU Multiprocessing Pool):::process
+    A[(Raw JSONL Dataset)]:::input -->|Read & Map| Phase1
     
-    subgraph "Phase 1: Offline Pre-computation (No Time Limit)"
-        B --> C{Adversarial Filters}:::decision
+    subgraph Phase1 ["Phase 1: Offline Pre-computation (No Time Limit)"]
+        direction LR
+        B(CPU Multiprocessing Pool):::process --> C{Adversarial Filters}:::decision
         C -->|Fail| X((Discard Honeypot)):::discard
         C -->|Pass| D[Extract Hard Metrics]:::process
         D --> E[BGE Semantic Embedding<br>GPU Accelerated]:::gpu
     end
     
     E -->|Write| F[(Parquet Features Cache)]:::cache
+    F -->|Instant Load| Phase2
     
-    subgraph "Phase 2: Timed Online Ranking (< 5 mins)"
-        F -->|Instant Load| G(ranker.py):::process
-        G --> H[Hybrid Arithmetic Scoring]:::process
+    subgraph Phase2 ["Phase 2: Timed Online Ranking (< 5 mins)"]
+        direction LR
+        G(ranker.py):::process --> H[Hybrid Arithmetic Scoring]:::process
         H --> I[Deterministic Reasoning]:::process
     end
     
     I --> J([Final CULT.csv Output]):::success
+    
+    linkStyle default stroke:#455a64,stroke-width:2px
 ```
 
 ### 1. Offline Pre-computation Phase (`offline_processor.py`)
