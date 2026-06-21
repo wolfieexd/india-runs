@@ -1,0 +1,15 @@
+# Dataset and cache files
+candidates.jsonl
+sample_candidates.json
+features_cache.parquet
+disqualified_log.json
+
+# Documentation from hackathon bundle
+*.docx
+candidate_schema.json
+
+# Python caches
+__pycache__/
+*.pyc
+.env
+venv/

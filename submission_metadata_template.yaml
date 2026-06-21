@@ -1,0 +1,46 @@
+# Redrob Hackathon — Submission Metadata
+team_name: "CULT"
+
+primary_contact:
+  name: "CULT Team"
+  email: "team@cult.ai"
+  phone: "+91-0000000000"
+
+team_members:
+  - name: "AI Engineer"
+    email: "engineer@cult.ai"
+    role: "ML Engineer"
+
+github_repo: "https://github.com/cult/redrob-challenge"
+sandbox_link: "https://huggingface.co/spaces/cult/redrob-ranker"
+reproduce_command: "python ranker.py"
+
+compute:
+  platform: "Local Machine"
+  cpu_cores: 8
+  ram_gb: 16
+  python_version: "3.10+"
+  os: "Windows / Linux / macOS"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: true
+  pre_computation_time_minutes: 15
+
+ai_tools_used:
+  - "Gemini 3.1 Pro"
+
+ai_usage_summary: |
+  Used AI to help structure the code, parse requirements, and implement the offline/online split architecture. 
+  No hosted LLM API was used during the timed ranking phase.
+
+methodology_summary: |
+  We split the process into an offline processing phase and an online ranking phase.
+  In the offline phase, we use sentence-transformers/all-MiniLM-L6-v2 to embed career history and summaries, extract signals (demonstrated fit, evaluation frameworks), apply hard disqualifiers, and flag honeypots. All data is cached.
+  In the online phase, we load the cached features, apply an arithmetic scoring formula with predefined weights, and generate a factual reasoning string based on the extracted features. This guarantees execution in under 5 minutes on CPU.
+
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true
