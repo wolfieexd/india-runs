@@ -15,28 +15,32 @@ To guarantee we meet the strict latency constraints, we designed a highly optimi
 
 ```mermaid
 graph TD
-    A[Raw candidates.jsonl] -->|Multiprocessing Map| B(CPU Pool)
+    classDef input fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    classDef process fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000
+    classDef gpu fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    classDef decision fill:#ede7f6,stroke:#4527a0,stroke-width:2px,color:#000
+    classDef discard fill:#ffebee,stroke:#b71c1c,stroke-width:2px,color:#000
+    classDef success fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#000
+    classDef cache fill:#e8eaf6,stroke:#1a237e,stroke-width:2px,color:#000
+
+    A[(Raw JSONL Dataset)]:::input -->|Read & Map| B(CPU Multiprocessing Pool):::process
     
-    subgraph Phase 1: Offline Pre-computation
-        B --> C{Adversarial Filters}
-        C -->|Fail| X((Discarded))
-        C -->|Pass| D[Extract Hard Metrics]
-        D --> E[BGE Semantic Embedding<br>GPU/MPS Accelerated]
+    subgraph "Phase 1: Offline Pre-computation (No Time Limit)"
+        B --> C{Adversarial Filters}:::decision
+        C -->|Fail| X((Discard Honeypot)):::discard
+        C -->|Pass| D[Extract Hard Metrics]:::process
+        D --> E[BGE Semantic Embedding<br>GPU Accelerated]:::gpu
     end
     
-    E -->|Write Cache| F[(features_cache.parquet)]
+    E -->|Write| F[(Parquet Features Cache)]:::cache
     
-    subgraph Phase 2: Timed Online Ranking
-        F -->|Instant Load| G[ranker.py]
-        G --> H[Hybrid Arithmetic Scoring]
-        H --> I[Deterministic Reasoning Templates]
+    subgraph "Phase 2: Timed Online Ranking (< 5 mins)"
+        F -->|Instant Load| G(ranker.py):::process
+        G --> H[Hybrid Arithmetic Scoring]:::process
+        H --> I[Deterministic Reasoning]:::process
     end
     
-    I --> J([Final CULT.csv Output])
-    
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style F fill:#bbf,stroke:#333,stroke-width:2px
-    style J fill:#bfb,stroke:#333,stroke-width:2px
+    I --> J([Final CULT.csv Output]):::success
 ```
 
 ### 1. Offline Pre-computation Phase (`offline_processor.py`)
