@@ -13,7 +13,33 @@ The core requirement was to build a ranking engine that deeply understands candi
 
 To guarantee we meet the strict latency constraints, we designed a highly optimized **two-phase architecture**:
 
-1. **Offline Pre-computation Phase (`offline_processor.py`)**
+```mermaid
+graph TD
+    A[Raw candidates.jsonl] -->|Multiprocessing Map| B(CPU Pool)
+    
+    subgraph Phase 1: Offline Pre-computation
+        B --> C{Adversarial Filters}
+        C -->|Fail| X((Discarded))
+        C -->|Pass| D[Extract Hard Metrics]
+        D --> E[BGE Semantic Embedding<br>GPU/MPS Accelerated]
+    end
+    
+    E -->|Write Cache| F[(features_cache.parquet)]
+    
+    subgraph Phase 2: Timed Online Ranking
+        F -->|Instant Load| G[ranker.py]
+        G --> H[Hybrid Arithmetic Scoring]
+        H --> I[Deterministic Reasoning Templates]
+    end
+    
+    I --> J([Final CULT.csv Output])
+    
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#bbf,stroke:#333,stroke-width:2px
+    style J fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+### 1. Offline Pre-computation Phase (`offline_processor.py`)
    - **Semantic Embeddings**: Uses `BAAI/bge-small-en-v1.5` (top-tier MTEB model) to deeply analyze `career_history` and `summary` texts instead of easily gamified skill tags.
    - **Parallel Processing**: Employs `concurrent.futures` to map data parsing and adversarial filtering across all available CPU cores, keeping the hardware accelerator heavily saturated.
    - **Adversarial Filtering**: Employs hard disqualifier logic to aggressively prune job-hoppers, services-only profiles without product experience, and honeypot candidates.
