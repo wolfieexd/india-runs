@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime
 import pandas as pd
 from sentence_transformers import SentenceTransformer
+import torch
 from tqdm import tqdm
 
 DIR = Path(__file__).parent
@@ -132,7 +133,11 @@ def extract_features(candidate):
 
 def process_offline():
     print(f"Loading {INPUT_FILE}...")
-    model = SentenceTransformer(EMBEDDING_MODEL)
+    
+    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+    print(f"Initializing embedding model on device: {device.upper()}")
+    
+    model = SentenceTransformer(EMBEDDING_MODEL, device=device)
     
     jd_text = """
     Senior AI Engineer — Founding Team, Redrob AI.
