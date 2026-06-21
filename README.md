@@ -14,7 +14,8 @@ The core requirement was to build a ranking engine that deeply understands candi
 To guarantee we meet the strict latency constraints, we designed a highly optimized **two-phase architecture**:
 
 1. **Offline Pre-computation Phase (`offline_processor.py`)**
-   - **Semantic Embeddings**: Uses `sentence-transformers/all-MiniLM-L6-v2` to deeply analyze `career_history` and `summary` texts instead of easily gamified skill tags.
+   - **Semantic Embeddings**: Uses `BAAI/bge-small-en-v1.5` (top-tier MTEB model) to deeply analyze `career_history` and `summary` texts instead of easily gamified skill tags.
+   - **Parallel Processing**: Employs `concurrent.futures` to map data parsing and adversarial filtering across all available CPU cores, keeping the hardware accelerator heavily saturated.
    - **Adversarial Filtering**: Employs hard disqualifier logic to aggressively prune job-hoppers, services-only profiles without product experience, and honeypot candidates.
    - **Feature Extraction**: Extracts discrete, factual metrics (Years of Experience, Demonstrated ML shipping experience, Evaluation Metrics) and caches them via Parquet for extreme I/O speed.
 
@@ -34,7 +35,7 @@ To guarantee we meet the strict latency constraints, we designed a highly optimi
 
 ### Step 1: Offline Processing (Cache Generation)
 Run the processor to build the semantic embeddings and apply the hard filters.
-*(Note: Requires an initial network connection to download the local MiniLM model. Operates outside the 5-minute timed window. Automatically accelerates via NVIDIA GPU (CUDA), AMD GPU (ROCm), or Apple Silicon (MPS) if available).*
+*(Note: Requires an initial network connection to download the local BGE model. Operates outside the 5-minute timed window. Automatically accelerates via NVIDIA GPU (CUDA), AMD GPU (ROCm), or Apple Silicon (MPS) if available, while fully utilizing CPU multi-processing).*
 ```bash
 python offline_processor.py
 ```
