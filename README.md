@@ -1,37 +1,64 @@
-# CULT - AI-Powered Candidate Ranking System
+# 🚀 CULT: AI-Powered Candidate Ranking System
 
-## Overview
-This repository contains the solution for the Redrob Hackathon — Intelligent Candidate Discovery & Ranking Challenge.
-It strictly adheres to the < 5 minute, CPU-only, and no-network constraints for the online ranking phase.
+[![Hackathon](https://img.shields.io/badge/Hackathon-Redrob_Data_%26_AI-blue.svg)](https://redrob.com)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
-## Setup
-1. Create a virtual environment (optional).
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+Welcome to **Team CULT's** submission for the *Intelligent Candidate Discovery & Ranking Challenge*. Our solution successfully processes 100,000 highly adversarial candidate profiles to deliver a trustworthy, deterministic, and highly explainable top-100 candidate shortlist.
 
-## Workflow
+## 🏆 The Challenge
+The core requirement was to build a ranking engine that deeply understands candidate career histories and avoids simplistic "keyword stuffers" and honeypot traps—all while adhering to a strict **< 5-minute, CPU-only, network-disabled** execution budget.
 
-### 1. Offline Pre-computation Phase
-Run the offline processor to extract features, compute embeddings, detect honeypots, and apply hard filters.
-This step processes the raw `candidates.jsonl` and generates a fast, compact cache file (`features_cache.parquet`).
-*Note: This phase operates outside the 5-minute timed window and requires network access to download the `all-MiniLM-L6-v2` embedding model initially.*
+## 🏗️ Architecture
 
+To guarantee we meet the strict latency constraints, we designed a highly optimized **two-phase architecture**:
+
+1. **Offline Pre-computation Phase (`offline_processor.py`)**
+   - **Semantic Embeddings**: Uses `sentence-transformers/all-MiniLM-L6-v2` to deeply analyze `career_history` and `summary` texts instead of easily gamified skill tags.
+   - **Adversarial Filtering**: Employs hard disqualifier logic to aggressively prune job-hoppers, services-only profiles without product experience, and honeypot candidates.
+   - **Feature Extraction**: Extracts discrete, factual metrics (Years of Experience, Demonstrated ML shipping experience, Evaluation Metrics) and caches them via Parquet for extreme I/O speed.
+
+2. **Timed Online Ranking Phase (`ranker.py`)**
+   - **Hybrid Scoring**: Applies a strict arithmetic formula using offline signals (`30% Semantic Sim + 25% Demo Fit + 15% Exp + 10% Eval - 20% Availability Penalty`).
+   - **Deterministic Reasoning**: Generates 100% factual reasoning strings directly bound to the candidate's extracted profile metrics, ensuring **zero generative LLM hallucinations**.
+   - **Compliance**: Runs strictly on CPU with no network requests, successfully executing the full 100,000 dataset well within the 5-minute time limit.
+
+## 🛠️ Setup & Execution
+
+### Prerequisites
+- Python 3.10+
+- Install dependencies:
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+### Step 1: Offline Processing (Cache Generation)
+Run the processor to build the semantic embeddings and apply the hard filters.
+*(Note: Requires an initial network connection to download the local MiniLM model. Operates outside the 5-minute timed window).*
 ```bash
 python offline_processor.py
 ```
 
-### 2. Timed Ranking Phase
-Run the fast ranker to compute final scores based on the offline-extracted features, format the factual reasoning column, and generate the final submission CSV.
-This step guarantees completion well under the 5-minute limit and operates strictly CPU-only with no network access.
-
+### Step 2: Timed Ranking Execution
+Run the ranker to generate the final shortlisted output.
+*(Note: Operates entirely offline and strictly on CPU).*
 ```bash
 python ranker.py
 ```
 
-### 3. Validation
-Validate the submission using the provided script:
+### Step 3: Output Validation
+Verify the deterministic output (`CULT.csv`) complies with all Hackathon constraints.
 ```bash
 python validate_submission.py CULT.csv
 ```
+
+## 📂 Repository Contents
+- `offline_processor.py`: Heavy-lifting feature extraction & semantic embedding.
+- `ranker.py`: High-speed candidate ranker and factual reasoning generator.
+- `submission_metadata.yaml`: Team registration and metadata declarations.
+- `requirements.txt`: Pinned Python dependencies.
+- `CULT.csv`: Final Top-100 ranked candidates output.
+- `CULT_Presentation_Deck.pdf`: Architectural overview and approach explanation.
+
+---
+*Built with precision by Team CULT.*
