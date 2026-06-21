@@ -134,8 +134,18 @@ def extract_features(candidate):
 def process_offline():
     print(f"Loading {INPUT_FILE}...")
     
-    device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-    print(f"Initializing embedding model on device: {device.upper()}")
+    device = "cpu"
+    if torch.cuda.is_available():
+        device = "cuda"
+        if torch.version.hip:
+            print("Initializing embedding model on AMD GPU (ROCm)")
+        else:
+            print("Initializing embedding model on NVIDIA GPU (CUDA)")
+    elif torch.backends.mps.is_available():
+        device = "mps"
+        print("Initializing embedding model on Apple Silicon (MPS)")
+    else:
+        print("Initializing embedding model on CPU")
     
     model = SentenceTransformer(EMBEDDING_MODEL, device=device)
     

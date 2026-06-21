@@ -34,7 +34,7 @@ To guarantee we meet the strict latency constraints, we designed a highly optimi
 
 ### Step 1: Offline Processing (Cache Generation)
 Run the processor to build the semantic embeddings and apply the hard filters.
-*(Note: Requires an initial network connection to download the local MiniLM model. Operates outside the 5-minute timed window).*
+*(Note: Requires an initial network connection to download the local MiniLM model. Operates outside the 5-minute timed window. Automatically accelerates via NVIDIA GPU (CUDA), AMD GPU (ROCm), or Apple Silicon (MPS) if available).*
 ```bash
 python offline_processor.py
 ```
